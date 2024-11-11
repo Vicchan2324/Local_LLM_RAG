@@ -45,34 +45,7 @@ class RAGSystem:
         self.model_path = None
         self.pdf_images = []
         self.current_page = 0
-        self.vectorstore_cache = {}
-        self.pdf_image_cache = {}
-        self.vectorstore_cache_file = "./data/cache/vectorstore_cache.json"
-        self.pdf_image_cache_file = "./data/cache/pdf_image_cache.pkl"
-        self.load_cache()
 
-    def load_cache(self):
-        if os.path.exists(self.vectorstore_cache_file):
-            with open(self.vectorstore_cache_file, "r") as file:
-                self.vectorstore_cache = json.load(file)
-        else:
-            self.vectorstore_cache = {}
-
-        if os.path.exists(self.pdf_image_cache_file):
-            with open(self.pdf_image_cache_file, "rb") as file:
-                self.pdf_image_cache = pickle.load(file)
-        else:
-            self.pdf_image_cache = {}
-            
-    def save_cache(self):
-            print(self.vectorstore_cache)
-            print('*'*50)
-            print(self.pdf_image_cache)
-        # with open(self.vectorstore_cache_file, "w") as file:
-        #     json.dump(self.vectorstore_cache, file)
-
-        # with open(self.pdf_image_cache_file, "wb") as file:
-        #     pickle.dump(self.pdf_image_cache, file)
         
     def download_model(self, model_path: str):
         if not os.path.exists(model_path):
@@ -119,24 +92,20 @@ class RAGSystem:
     
     def process_pdf(self, file_path):
         try:
-            if file_path in self.pdf_image_cache:
-                print("Using cached PDF images")
-                self.pdf_images = self.pdf_image_cache[file_path]
-            else:
             
-                loader = PyPDFLoader(file_path)
-                documents = loader.load()
-                
-                text_splitter = RecursiveCharacterTextSplitter(
-                    chunk_size=500,
-                    chunk_overlap=50,
-                    length_function=len
-                )
-                texts = text_splitter.split_documents(documents)
-                
-                # Convert PDF pages to images
-                self.pdf_images = convert_from_path(file_path, fmt="png")
-                return texts
+            loader = PyPDFLoader(file_path)
+            documents = loader.load()
+            
+            text_splitter = RecursiveCharacterTextSplitter(
+                chunk_size=500,
+                chunk_overlap=50,
+                length_function=len
+            )
+            texts = text_splitter.split_documents(documents)
+            
+            # Convert PDF pages to images
+            self.pdf_images = convert_from_path(file_path, fmt="png")
+            return texts
         except Exception as e:
             raise gr.Error(f"Error processing PDF: {str(e)}")
     
@@ -156,20 +125,11 @@ class RAGSystem:
             if not file.name.endswith('.pdf'):
                 raise gr.Error("Please upload a PDF file")
             
-            # check for cache
-            pdf_hash = self.calculate_pdf_hash(file.name)
-            if pdf_hash in self.vectorstore_cache:
-                print("Using cached vector store")
-                vectorstore = self.vectorstore_cache[pdf_hash]
-                pdf_images = self.pdf_image_cache[pdf_hash]
-            else:
-                print("Creating new vector store")
-                texts = self.process_pdf(file.name)
-                vectorstore = self.create_vectorstore(texts)
-                pdf_images = self.pdf_images
-                self.vectorstore_cache[pdf_hash] = vectorstore
-                self.pdf_image_cache[pdf_hash] = pdf_images
-                self.save_cache()
+            
+            print("Creating new vector store")
+            texts = self.process_pdf(file.name)
+            vectorstore = self.create_vectorstore(texts)
+            pdf_images = self.pdf_images
 
             
             self.qa_chain = RetrievalQA.from_chain_type(
@@ -194,7 +154,7 @@ class RAGSystem:
 
         try:
             # Create a prompt based on the PDF file
-            pdf_prompt = f"You are an expert on the document '{self.pdf_images[0].filename}'. Please answer the following question: {question}"
+            pdf_prompt = f"You are an expert on the document '{self.pdf_images[0].filename}'. Please answer the following question based on the file provided: {question}"
 
             # Query the model with the prompt
             response = self.qa_chain(pdf_prompt)
@@ -208,7 +168,7 @@ class RAGSystem:
             print('='*25)
             print('Checker output: ', acceptable_answer)
             # If the answer is not acceptable, display a message instead
-            if acceptable_answer.lower() != 'yes':
+            if "yes" not in acceptable_answer.lower():
                 return "Sorry, I couldn't find a suitable answer to your question.", self.pdf_images[0]
 
             # If the answer is acceptable, display the answer and the page where the answer is based on
