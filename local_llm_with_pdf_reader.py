@@ -10,11 +10,11 @@ from tqdm import tqdm
 from typing import List
 from transformers import AutoTokenizer, AutoModel
 import torch
-import time
+# import time
 from pdf2image import convert_from_path
 import hashlib
-import json 
-import pickle
+# import json 
+# import pickle
 
 class SimpleEmbeddings:
     def __init__(self):
@@ -154,7 +154,7 @@ class RAGSystem:
 
         try:
             # Create a prompt based on the PDF file
-            pdf_prompt = f"You are an expert on the document '{self.pdf_images[0].filename}'. Please answer the following question based on the file provided: {question}"
+            pdf_prompt = f"### Instruction:You're a helpful user guide assistant, who answers questions based on provided user guide in a clear way and easy-to-understand way. If there is no information from the provided content to answering the question, simply reply that you can't answer. This is the question: {question}"
 
             # Query the model with the prompt
             response = self.qa_chain(pdf_prompt)
