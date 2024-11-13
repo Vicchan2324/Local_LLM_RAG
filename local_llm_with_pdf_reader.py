@@ -18,7 +18,12 @@ import hashlib
 
 class SimpleEmbeddings:
     def __init__(self):
-        device = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
+        # compatible for all devices
+        device = torch.device("mps" if torch.backends.mps.is_available() else 
+                      "cuda" if torch.cuda.is_available() else 
+                      "cpu")
+
+        print(f"Using device: {device}")
         self.tokenizer = AutoTokenizer.from_pretrained("prajjwal1/bert-tiny")
         self.model = AutoModel.from_pretrained("prajjwal1/bert-tiny").to(device)
         self.device = device
